@@ -41,3 +41,10 @@ func (s *OrderService) CreateOrder(stream orderpb.OrderService_CreateOrderServer
 
 	return nil
 }
+
+func (s *OrderService) Charge(ctx context.Context, req *orderpb.ChargeRequest) (*orderpb.ChargeResponse, error) {
+	fmt.Printf("Charging User: %v\n", req.UserId)
+	return &orderpb.ChargeResponse{
+		IsPaid: true,
+	}, nil
+}
