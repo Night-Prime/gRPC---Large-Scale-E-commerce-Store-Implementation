@@ -1,0 +1,28 @@
+syntax = "proto3";
+package order.v1;
+
+option go_package = "e-comm/proto/gen/go/order/v1;order";
+
+service OrderService {
+	rpc CreateOrder(stream CreateOrderRequest) returns (stream CreateOrderResponse) {};
+}
+
+message CreateOrderRequest {
+	string order_id = 1;
+	string order_product = 2;
+	bool is_paid = 3;
+	string user_id = 4;
+	OrderStatus order_status = 5;
+	string order_amount = 6;
+}
+
+message CreateOrderResponse {
+	OrderStatus order_status = 5;
+}
+
+enum OrderStatus {
+	ORDER_STATUS_UNSPECIFIED = 0;
+	ORDER_STATUS_PENDING = 1;
+	ORDER_STATUS_SUCCESS = 2;
+	ORDER_STATUS_FAILED = 3;
+}

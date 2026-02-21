@@ -1,12 +1,16 @@
 // Handling my Middleware here for now:
 const rateLimit = 10;
 const interval = 60 * 1000;
-const requestCount = {};
+let requestCount = {};
 
 setInterval(() => {
     Object.keys(requestCount).forEach((ip) => {
         requestCount[ip] = 0;
     });
+}, interval);
+
+setTimeout(() => {
+    requestCount = {};
 }, interval);
 
 

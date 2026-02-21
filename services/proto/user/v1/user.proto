@@ -1,0 +1,17 @@
+syntax = "proto3";
+package user.v1;
+
+option go_package = "e-comm/proto/gen/go/user/v1;user";
+
+service UserService {
+	rpc VerifyUser(VerifyUserRequest) returns (VerifyUserResponse) {};
+}
+
+message VerifyUserRequest {
+	string user_id = 1;
+	string password = 2;
+}
+
+message VerifyUserResponse {
+	bool is_verified = 1;
+}

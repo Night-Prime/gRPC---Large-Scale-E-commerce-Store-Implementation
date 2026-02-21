@@ -1,0 +1,19 @@
+syntax = "proto3";
+package payment.v1;
+
+option go_package = "e-comm/proto/gen/go/payment/v1;payment";
+
+service PaymentService {
+	rpc Charge(ChargeRequest) returns (ChargeResponse) {};
+}
+
+message ChargeRequest {
+	string user_id = 1;
+	string order_id = 2;
+	string order_amount = 3;
+}
+
+message ChargeResponse {
+	bool is_paid = 1;
+	string order_amount = 2;
+}
