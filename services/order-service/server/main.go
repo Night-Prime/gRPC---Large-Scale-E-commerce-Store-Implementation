@@ -2,10 +2,9 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
+	"net"
 	"time"
 
 	orderpb "e-comm/proto/gen/go/order/v1"
@@ -16,120 +15,104 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+type OrderService struct {
+	orderpb.UnimplementedOrderServiceServer
+	userClient    userpb.UserServiceClient
+	paymentClient paymentpb.PaymentServiceClient
+}
+
+func (s *OrderService) CreateOrder(ctx context.Context, req *orderpb.CreateOrderRequest) (*orderpb.CreateOrderResponse, error) {
+	fmt.Println("Creating an Order Natively")
+	fmt.Printf("Processing Order Request: %v\n", req)
+
+	// Verify User
+	verifyCtx, verifyCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer verifyCancel()
+
+	userRes, err := s.userClient.VerifyUser(verifyCtx, &userpb.VerifyUserRequest{
+		Token: req.UserId, // Client will pass JWT via user_id field
+	})
+	if err != nil {
+		log.Printf("Fail to Verify User: %v", err)
+		return nil, fmt.Errorf("failed to verify user: %w", err)
+	}
+
+	serverResponse := &orderpb.CreateOrderResponse{
+		OrderStatus: orderpb.OrderStatus_ORDER_STATUS_FAILED,
+	}
+
+	if userRes.IsVerified {
+		fmt.Printf("User Verified Successfully\n")
+		fmt.Println("---------------------------------------->")
+
+		serverResponse.OrderStatus = orderpb.OrderStatus_ORDER_STATUS_PENDING
+		fmt.Printf("Order natively created with status: %v\n", serverResponse.OrderStatus)
+
+		// Charge User
+		chargeCtx, chargeCancel := context.WithTimeout(ctx, 30*time.Second)
+		defer chargeCancel()
+
+		paymentRes, err := s.paymentClient.Charge(chargeCtx, &paymentpb.ChargeRequest{
+			UserId:      userRes.UserId,
+			OrderId:     req.OrderId,
+			OrderAmount: req.OrderAmount,
+		})
+		if err != nil {
+			log.Printf("Fail to Charge User: %v", err)
+			return nil, fmt.Errorf("failed to charge user: %w", err)
+		}
+
+		if paymentRes.IsPaid {
+			fmt.Printf("User Charged Successfully \n")
+			fmt.Println("---------------------------------------->")
+			serverResponse.OrderStatus = orderpb.OrderStatus_ORDER_STATUS_SUCCESS
+		}
+	} else {
+		log.Println("User not verified.")
+	}
+
+	fmt.Printf("Final Order Status: %v\n", serverResponse.OrderStatus)
+	return serverResponse, nil
+}
+
 func main() {
-	fmt.Println("Setting up the Order Service")
+	fmt.Println("Setting up the Order Service (gRPC)")
 	fmt.Println("---------------------------------------->")
 
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
-	// connecting to the user service
-	conn, err := grpc.NewClient("localhost:8081", opts...)
-	if err != nil {
-		log.Fatalf("Fail to Dial: %v", err)
-	}
 
-	defer conn.Close()
+	// connecting to the user service
+	userConn, err := grpc.NewClient("localhost:8081", opts...)
+	if err != nil {
+		log.Fatalf("Fail to Dial User Service: %v", err)
+	}
+	defer userConn.Close()
 
 	// connecting to payment service
 	paymentConn, err := grpc.NewClient("localhost:8082", opts...)
 	if err != nil {
-		log.Fatalf("Fail to Dial: %v", err)
+		log.Fatalf("Fail to Dial Payment Service: %v", err)
 	}
-
 	defer paymentConn.Close()
 
-	// ==================================================================>
+	// Setup Server
+	lis, err := net.Listen("tcp", ":8080")
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Welcome to E-comm Order Service\n")
-	})
+	orderServer := &OrderService{
+		userClient:    userpb.NewUserServiceClient(userConn),
+		paymentClient: paymentpb.NewPaymentServiceClient(paymentConn),
+	}
 
-	http.HandleFunc("/order/", func(w http.ResponseWriter, r *http.Request) {
+	grpcServer := grpc.NewServer()
+	orderpb.RegisterOrderServiceServer(grpcServer, orderServer)
 
-		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-		defer cancel()
-
-		// verify user through rpc call to user service:
-		client := userpb.NewUserServiceClient(conn)
-
-		response, err := client.VerifyUser(ctx,
-			&userpb.VerifyUserRequest{
-				UserId:   "a23467585x-58686689-t5676d",
-				Password: "Esther1012?",
-			})
-		if err != nil {
-			log.Printf("Fail to Verify User: %v", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-
-		//then we create the order
-		createdOrder := &orderpb.CreateOrderRequest{
-			OrderId:      "167585ax566867bc",
-			OrderProduct: "Escalade",
-			IsPaid:       false,
-			UserId:       "a23467585x-58686689-t5676d",
-			OrderStatus:  orderpb.OrderStatus_ORDER_STATUS_UNSPECIFIED,
-			OrderAmount:  "600000000",
-		}
-
-		var serverResponse *orderpb.CreateOrderResponse
-
-		if response.IsVerified {
-			fmt.Printf("User Verified Successfully\n")
-			fmt.Println("---------------------------------------->")
-
-			// Native execution of Create Order logic instead of gRPC
-			fmt.Println("Creating an Order Natively")
-			fmt.Printf("Processing Order Request: %v\n", createdOrder)
-
-			serverResponse = &orderpb.CreateOrderResponse{
-				OrderStatus: orderpb.OrderStatus_ORDER_STATUS_PENDING,
-			}
-			fmt.Printf("Order natively created with status: %v\n", serverResponse.OrderStatus)
-		}
-
-		if serverResponse.OrderStatus == orderpb.OrderStatus_ORDER_STATUS_PENDING {
-			// charge the user through rpc call to payment service:
-			paymentClient := paymentpb.NewPaymentServiceClient(paymentConn)
-
-			response, err := paymentClient.Charge(ctx, &paymentpb.ChargeRequest{
-				UserId:      "a23467585x-58686689-t5676d",
-				OrderId:     "167585ax566867bc",
-				OrderAmount: "600000000",
-			})
-			if err != nil {
-				log.Printf("Fail to Charge User: %v", err)
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-				return
-			}
-
-			if response.IsPaid {
-				fmt.Printf("User Charged Successfully \n")
-				fmt.Println("---------------------------------------->")
-
-				createdOrder.OrderStatus = orderpb.OrderStatus_ORDER_STATUS_SUCCESS
-			}
-			fmt.Printf("Response From Payment Service: %v\n", response)
-		} else {
-			createdOrder.OrderStatus = orderpb.OrderStatus_ORDER_STATUS_FAILED
-		}
-
-		fmt.Printf("Response From User Service: %v\n", response)
-
-		orderBytes, err := json.Marshal(createdOrder)
-		if err != nil {
-			log.Printf("Fail to Marshal Order: %v", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-		fmt.Fprintf(w, "%s", orderBytes)
-	})
-
-	fmt.Println("Order Service is listening on :8080")
-	httpErr := http.ListenAndServe(":8080", nil)
-	if httpErr != nil {
-		log.Fatal("HTTP Server Error: ", httpErr)
+	fmt.Println("Order Service is running via gRPC on :8080")
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("Failed to serve: %v", err)
 	}
 }

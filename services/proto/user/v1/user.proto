@@ -4,14 +4,35 @@ package user.v1;
 option go_package = "e-comm/proto/gen/go/user/v1;user";
 
 service UserService {
+	rpc Signup(SignupRequest) returns (SignupResponse) {};
+	rpc Login(LoginRequest) returns (LoginResponse) {};
 	rpc VerifyUser(VerifyUserRequest) returns (VerifyUserResponse) {};
 }
 
-message VerifyUserRequest {
-	string user_id = 1;
+message SignupRequest {
+	string email = 1;
 	string password = 2;
+}
+
+message SignupResponse {
+	string user_id = 1;
+	string token = 2;
+}
+
+message LoginRequest {
+	string email = 1;
+	string password = 2;
+}
+
+message LoginResponse {
+	string token = 1;
+}
+
+message VerifyUserRequest {
+	string token = 1;
 }
 
 message VerifyUserResponse {
 	bool is_verified = 1;
+	string user_id = 2;
 }

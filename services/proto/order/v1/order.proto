@@ -4,7 +4,7 @@ package order.v1;
 option go_package = "e-comm/proto/gen/go/order/v1;order";
 
 service OrderService {
-	rpc CreateOrder(stream CreateOrderRequest) returns (stream CreateOrderResponse) {};
+	rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse) {};
 }
 
 message CreateOrderRequest {

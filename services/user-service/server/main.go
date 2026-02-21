@@ -7,6 +7,7 @@ import (
 
 	userpb "e-comm/proto/gen/go/user/v1"
 	userservice "e-comm/user-service"
+	"e-comm/user-service/config"
 
 	"google.golang.org/grpc"
 )
@@ -19,10 +20,13 @@ func main() {
 	fmt.Println("Setting up User Service")
 	fmt.Println("------------------------------------------------>")
 
+	config.InitDB()
+
 	lis, err := net.Listen("tcp", ":8081")
 
 	if err != nil {
-		log.Fatal("TCP Server Error: ", err)
+		log.Fatal("Server Error: ", err)
+		fmt.Println("------------------------------------------------>")
 	}
 
 	userServer := &UserService{}

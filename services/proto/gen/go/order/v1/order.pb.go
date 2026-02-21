@@ -219,9 +219,9 @@ const file_order_v1_order_proto_rawDesc = "" +
 	"\x18ORDER_STATUS_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14ORDER_STATUS_PENDING\x10\x01\x12\x18\n" +
 	"\x14ORDER_STATUS_SUCCESS\x10\x02\x12\x17\n" +
-	"\x13ORDER_STATUS_FAILED\x10\x032`\n" +
-	"\fOrderService\x12P\n" +
-	"\vCreateOrder\x12\x1c.order.v1.CreateOrderRequest\x1a\x1d.order.v1.CreateOrderResponse\"\x00(\x010\x01B$Z\"e-comm/proto/gen/go/order/v1;orderb\x06proto3"
+	"\x13ORDER_STATUS_FAILED\x10\x032\\\n" +
+	"\fOrderService\x12L\n" +
+	"\vCreateOrder\x12\x1c.order.v1.CreateOrderRequest\x1a\x1d.order.v1.CreateOrderResponse\"\x00B$Z\"e-comm/proto/gen/go/order/v1;orderb\x06proto3"
 
 var (
 	file_order_v1_order_proto_rawDescOnce sync.Once

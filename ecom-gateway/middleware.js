@@ -14,7 +14,7 @@ setTimeout(() => {
 }, interval);
 
 
-export function rateLimitAndTimeout(req, res, next) {
+function rateLimitAndTimeout(req, res, next) {
     const ip = req.ip;
 
     requestCount[ip] = (requestCount[ip] || 0) + 1;
@@ -38,4 +38,6 @@ export function rateLimitAndTimeout(req, res, next) {
 
     next()
 }
+
+module.exports = { rateLimitAndTimeout };
 
